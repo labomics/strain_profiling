@@ -12,11 +12,11 @@ You could also generate sythetic data to check the performance of this pipeline.
 
 ## Citation
 
-Currently this work is under review for publication in ** mSystem **.
+Currently this work is under review for publication in **mSystem**.
 
 > ### Comprehensive Strain-level Analysis of the Gut Microbe *Faecalibacterium Prausnitzii* in Patients with Liver Cirrhosis
 
->> Yaowen Chen<sup>a\*</sup>, Pu Liu<sup>a\*</sup>, Runyan Liu<sup>a</sup>, Shuofeng Hu<sup>a</sup>, Zhen He<sup>a</sup>, Guohua Dong<sup>a</sup>, Chao Feng<sup>a</sup>, Sijing An<sup>a</sup>, Xiaomin Ying<sup>a#</sup>
+> Yaowen Chen<sup>a\*</sup>, Pu Liu<sup>a\*</sup>, Runyan Liu<sup>a</sup>, Shuofeng Hu<sup>a</sup>, Zhen He<sup>a</sup>, Guohua Dong<sup>a</sup>, Chao Feng<sup>a</sup>, Sijing An<sup>a</sup>, Xiaomin Ying<sup>a#</sup>
 
->> <sup>a</sup> Center for Computational Biology, Beijing Institute of Basic Medical Sciences, Beijing 100850, China
+> <sup>a</sup> Center for Computational Biology, Beijing Institute of Basic Medical Sciences, Beijing 100850, China
 
