@@ -10,6 +10,10 @@ Reference genomes should be prepared, including both the target strains and othe
 
 You could also generate sythetic data to check the performance of this pipeline.
 
+## Pipeline
+
+![pipeline](pngs/pipeline.png)
+
 ## Citation
 
 Currently this work is under review for publication in **mSystem**.
