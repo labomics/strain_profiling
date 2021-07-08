@@ -20,6 +20,7 @@ Currently this work is under review for publication in **mSystems**.
 
 > ### Comprehensive Strain-level Analysis of the Gut Microbe *Faecalibacterium Prausnitzii* in Patients with Liver Cirrhosis
 > Yaowen Chen<sup>a\*</sup>, Pu Liu<sup>a\*</sup>, Runyan Liu<sup>a</sup>, Shuofeng Hu<sup>a</sup>, Zhen He<sup>a</sup>, Guohua Dong<sup>a</sup>, Chao Feng<sup>a</sup>, Sijing An<sup>a</sup>, Xiaomin Ying<sup>a#</sup>
+
 > <sup>a</sup> Center for Computational Biology, Beijing Institute of Basic Medical Sciences, Beijing 100850, China
 
 ## Requirements
@@ -29,7 +30,7 @@ Currently this work is under review for publication in **mSystems**.
 
 ## Usage
 
-For  synthetic data, synthetic.py could be used to test the pipeline.
+For  synthetic data, `synthetic.py` could be used to test the pipeline.
 
     usage: synthetic.py [-h] [--bowtie BOWTIE] [--samtools SAMTOOLS]
                     [--background_ref_fna_path BACKGROUND_REF_FNA_PATH]
@@ -70,7 +71,7 @@ For  synthetic data, synthetic.py could be used to test the pipeline.
                         Output dir for results files
       --threads THREADS     Threads number for multiprocessing
 
-To profile the strains in samples, please use profiling.py.
+To profile the strains in samples, please use `profiling.py`.
 
     usage: profiling.py [-h] [--bowtie BOWTIE] [--samtools SAMTOOLS] [--fq1 FQ1]
                     [--outbase OUTBASE] [--ref_fna_dir REF_FNA_DIR]
@@ -94,7 +95,7 @@ To profile the strains in samples, please use profiling.py.
 
 ## Test
 
-To test if the pipeline works, please run the test.sh.
+To test if the pipeline works, please run the `test.sh`.
 
     sh test.sh
 
