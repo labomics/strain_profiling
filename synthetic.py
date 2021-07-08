@@ -7,10 +7,11 @@ import glob
 import uuid
 import pandas as pd
 import tempfile
+import argparse
 
-def compare_coverage(uid,target):
+def compare_coverage(bowtie,samtools,data_path,tmp_path,uid,target,sep_db,threads,util_path='utils'):
     tmp_file = tempfile.NamedTemporaryFile().name
-    os.system(f'python compare_coverage.py {uid} {target} > {tmp_file}')
+    os.system(f'python {util_path}/compare_coverage.py --bowtie {bowtie} --samtools {samtools} --data_path {data_path} --tmp_path {tmp_path} --uid {uid} --target  {target} --target_ref_separate_db_path {sep_db} --threads {threads} > {tmp_file}')
     with open(f'{tmp_file}','r') as inpf:
         for line in inpf:
             line = line.strip()
@@ -63,13 +64,65 @@ def gzip(f):
 
 if __name__ == '__main__':
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--bowtie',type=str,help='The bowtie2 bin path',default='bowtie2')
+    parser.add_argument('--samtools',type=str,help='The samtools bin path',default='samtools')
+    parser.add_argument('--background_ref_fna_path',type=str,help='The path of background genome references',default='test/refs/backgrounds/fnas/')
+    parser.add_argument('--background_ref_db_path',type=str,help='The path of background genome references',default='test/refs/backgrounds/merged')
+
+    parser.add_argument('--target_ref_fna_path',type=str,help='The path of target genome references',default='test/refs/targets/fnas/')
+    parser.add_argument('--target_ref_db_path',type=str,help='The path of target genome references',default='test/refs/targets/merged')
+    parser.add_argument('--target_ref_separate_db_path',type=str,help='References built from specific target strains',default='test/refs/targets/separate_dbs/')
+
+    parser.add_argument('--background_max_num',type=int,help='Upper limit for random background genomes selection',default=100)
+    parser.add_argument('--background_min_num',type=int,help='Lower limit for random background genomes selection',default=1)
+    parser.add_argument('--target_max_num',type=int,help='Upper limit for random target genomes selection',default=10)
+    parser.add_argument('--target_min_num',type=int,help='Lower limit for random target genomes selection',default=1)
+    parser.add_argument('--data_dir',type=str,help='Dir for generated data files',default='test/data/')
+    parser.add_argument('--output_dir',type=str,help='Output dir for results files',default='test/outputs/')
+    parser.add_argument('--threads',type=int,help='Threads number for multiprocessing',default=4)
+
+
+    args = parser.parse_args()
+
+    curr_path = os.path.dirname(os.path.abspath(__file__))
+
     uid =  str(uuid.uuid4())
-    d_background = '../refs/oldAllRef_without_GCA000166035/fnas/'
-    d_target = '../refs/136Fstrains/fnas/'
+    bowtie = args.bowtie
+    samtools = args.samtools
+    background_db = args.background_ref_db_path
+    d_background = args.background_ref_fna_path
+    d_target = args.target_ref_fna_path
+    data_path = args.data_dir
+    output_path = args.output_dir
+    threads = args.threads
 
 
-    target_no = random.choice(range(1,11))
-    background_no = random.choice(range(1,101))
+    if not os.path.exists(output_path):
+        os.mkdir(output_path)
+    if not os.path.exists(data_path):
+        os.mkdir(data_path)
+    if not os.path.exists(f'{output_path}/info'):
+        os.mkdir(f'{output_path}/info')
+    if not os.path.exists(f'{output_path}/tmp'):
+        os.mkdir(f'{output_path}/tmp')
+    if not os.path.exists(f'{output_path}/stats'):
+        os.mkdir(f'{output_path}/stats')
+    if not os.path.exists(f'{output_path}/res'):
+        os.mkdir(f'{output_path}/res')
+    if not os.path.exists(f'{data_path}/unmapped'):
+        os.mkdir(f'{data_path}/unmapped')
+
+    
+    if args.target_min_num > args.target_max_num:
+        print('target reference number error!')
+        exit(0)
+    if args.background_min_num > args.background_max_num:
+        print('background reference number error!')
+        exit(0)
+
+    target_no = random.choice(range(args.target_min_num,args.target_max_num))
+    background_no = random.choice(range(args.background_min_num,args.background_max_num))
     total_no = target_no + background_no
 
     print(f'target_no: {target_no}, background_no: {background_no}')
@@ -120,12 +173,12 @@ if __name__ == '__main__':
         r2_lst.append((f'{basenames[g_i]}-{i}',r2))
 
 
-    write_fq(r1_lst,f'data/{uid}_1.fastq',1)
-    write_fq(r2_lst,f'data/{uid}_2.fastq',2)
-    gzip(f'data/{uid}_1.fastq')
-    gzip(f'data/{uid}_2.fastq')
+    write_fq(r1_lst,f'{data_path}/{uid}_1.fastq',1)
+    write_fq(r2_lst,f'{data_path}/{uid}_2.fastq',2)
+    gzip(f'{data_path}/{uid}_1.fastq')
+    gzip(f'{data_path}/{uid}_2.fastq')
 
-    with open(f'info/{uid}.info','w') as outpf:
+    with open(f'{output_path}/info/{uid}.info','w') as outpf:
         outpf.write(f'#{count}\n')
         outpf.write(f'#{target_no}\t{background_no}\n')
         frac_str = '\t'.join([str(x) for x in frac])
@@ -138,11 +191,11 @@ if __name__ == '__main__':
             else:
                 outpf.write(f'{bn}\t{frac[i]}\tbackground\n')
 
-    os.system(f'time bowtie2  -x ../refs/oldAllRef_without_GCA000166035/merged -1 data/{uid}_1.fastq.gz -2 data/{uid}_2.fastq.gz -S tmp/{uid}.sam --no-unal -p 20 --un-conc-gz unmapped/{uid}_%.fastq.gz')
-    os.system(f'rm tmp/{uid}.sam')
-    os.system(f'python profiling.py unmapped/{uid}_1.fastq.gz .')
+    os.system(f'time {bowtie}  -x {background_db} -1 {data_path}/{uid}_1.fastq.gz -2 {data_path}/{uid}_2.fastq.gz -S {output_path}/tmp/{uid}.sam --no-unal -p 20 --un-conc-gz {data_path}/unmapped/{uid}_%.fastq.gz')
+    os.system(f'rm {output_path}/tmp/{uid}.sam')
+    os.system(f'python {curr_path}/profiling.py --bowtie {bowtie} --samtools {samtools} --fq1 {data_path}/unmapped/{uid}_1.fastq.gz --outbase {output_path} --ref_fna_dir {d_target} --ref_db_all {args.target_ref_db_path} --ref_db_separate_path {args.target_ref_separate_db_path} --threads {args.threads}')
     
-    df = pd.read_csv(f'stats/stat.{uid}.csv')
+    df = pd.read_csv(f'{output_path}/stats/stat.{uid}.csv')
 
     cov_dep_lst = []
     i = -1
@@ -154,7 +207,7 @@ if __name__ == '__main__':
         bname = os.path.basename(f).replace('.fna','')
         target_bnames.append(bname)
         item = []
-        item += [bname] + compare_coverage(uid,bname) + [frac[i]/sum(frac)]  
+        item += [bname] + compare_coverage(bowtie,samtools,data_path,output_path+'/tmp',uid,bname,args.target_ref_separate_db_path,threads,curr_path+'/utils') + [frac[i]/sum(frac)]  
         row = df[df['src'] == f'{uid}-{bname}']
         rank = row.index[0]
         predicted_cov = list(row['sum-cov'])[0]
@@ -181,6 +234,4 @@ if __name__ == '__main__':
 
 
 
-    res.to_csv(f'res/{uid}.csv')
-    os.system(f'rm output*/{uid}*')
-    os.system(f'rm output*/{uid}*')
+    res.to_csv(f'{output_path}/res/{uid}.csv')

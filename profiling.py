@@ -8,33 +8,31 @@ import pandas as pd
 import pysam
 import numpy as np
 import re
-import time
-import datetime
+import argparse
 
-def mapping(fq1,fq2,name,ref,output,minq=0,nthreads=10):
-    t1 = time.time()
-    if (os.path.exists(f'{output}/{name}.bam') or os.path.exists(f'{output}/{name}.sort.bam')):
-        return
-    os.system(f'bowtie2 -q --quiet -1 {fq1} -2 {fq2} -x {ref}  -S {output}/{name}.sam -p {nthreads} --very-sensitive --no-unal')
-    t2 = time.time()
-    os.system(f'samtools view -bS {output}/{name}.sam  -F 256 -q {minq} > {output}/{name}.bam')
-    os.system(f'rm {output}/{name}.sam')
+def mapping(fq1,fq2,name,ref,output,minq=0,nthreads=10,bowtie='bowtie2',samtools='samtools'):
+    try:
+        if (os.path.exists(f'{output}/{name}.bam') or os.path.exists(f'{output}/{name}.sort.bam')):
+            return
+        os.system(f'{bowtie} -q --quiet -1 {fq1} -2 {fq2} -x {ref}  -S {output}/{name}.sam -p {nthreads} --very-sensitive --no-unal')
+        os.system(f'{samtools} view -bS {output}/{name}.sam  -F 256 -q {minq} > {output}/{name}.bam')
+        os.system(f'rm {output}/{name}.sam')
 
-    os.system(f'samtools sort {output}/{name}.bam -o {output}/{name}.sort.bam')
-    os.system(f'samtools index {output}/{name}.sort.bam')
-    os.system(f'rm {output}/{name}.bam')
-    t3 = time.time()
-    print(f'{name}, mapping time:{(t2 - t1)/1000}, other time:{(t3-t2)/1000}') 
+        os.system(f'{samtools} sort {output}/{name}.bam -o {output}/{name}.sort.bam')
+        os.system(f'{samtools} index {output}/{name}.sort.bam')
+        os.system(f'rm {output}/{name}.bam')
+    except Exception as e:
+        print(e)
     return
 
-def get_coverage(bam_dir,name):
+def get_coverage(bam_dir,name,samtools='samtools'):
 
     if not os.path.exists(f'{bam_dir}/{name}.sort.bam'):
-        os.system(f'samtools sort {bam_dir}/{name}.bam -o {bam_dir}/{name}.sort.bam')
-        os.system(f'samtools index {bam_dir}/{name}.sort.bam')
+        os.system(f'{samtools} sort {bam_dir}/{name}.bam -o {bam_dir}/{name}.sort.bam')
+        os.system(f'{samtools} index {bam_dir}/{name}.sort.bam')
 
     tmp_file = tempfile.NamedTemporaryFile().name
-    os.system(f'samtools coverage {bam_dir}/{name}.sort.bam > {tmp_file}')
+    os.system(f'{samtools} coverage {bam_dir}/{name}.sort.bam > {tmp_file}')
     df = pd.read_csv(tmp_file,sep='\t')
     df['src'] = name
     os.system(f'rm {tmp_file}')
@@ -93,20 +91,31 @@ def merge(items):
 
 if __name__ == '__main__':
 
-    fq1 = sys.argv[1]
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--bowtie',type=str,help='The bowtie2 bin path',default='bowtie2')
+    parser.add_argument('--samtools',type=str,help='The samtools bin path',default='samtools')
+    parser.add_argument('--fq1',type=str,help='The input fastq read1 file')
+    parser.add_argument('--outbase',type=str,help='The output dir',default='test/outputs')
 
-    if len(sys.argv) == 3:
-        out_base = sys.argv[2]
-    else:
-        out_base = '.'
+    parser.add_argument('--ref_fna_dir',type=str,help='References location',default='test/refs/target/fnas/')
+    parser.add_argument('--ref_db_all',type=str,help='References built from all strains',default='test/refs/target/merged')
+    parser.add_argument('--ref_db_separate_path',type=str,help='References built from specific strains',default='test/refs/target/separate_dbs/')
+    parser.add_argument('--threads',type=int,help='Threads number for multiprocessing')
+
+
+    args = parser.parse_args()
+    fq1 = args.fq1
+    out_base = args.outbase
+    bowtie = args.bowtie
+    samtools = args.samtools
 
     print('out_base:',out_base)
 
     fq2 = fq1.replace('_1.fastq.gz','_2.fastq.gz').replace('.unmapped.1.gz','.unmapped.2.gz')
 
-    ref_dir = '/data1/chenyaowen/workspace/metaSNP_finalversion/refs/136Fstrains/'
-    overall_ref = f'{ref_dir}/merged'
-    separate_ref = f'{ref_dir}/separate_dbs/'
+    ref_fna_dir = args.ref_fna_dir
+    overall_ref = args.ref_db_all
+    separate_ref = args.ref_db_separate_path
 
     name = os.path.basename(fq1).replace('_1.fastq.gz','').replace('.unmapped.1.gz','')
     print(name)
@@ -128,35 +137,25 @@ if __name__ == '__main__':
         os.system(f'mkdir {out_base}/coverage')
 
 
-    nthreads = 10
+    nthreads = args.threads
     print('#step1, mapping to overall_ref')
-    st_time = time.time()
-    print('time: ',datetime.datetime.now().ctime())
-    mapping(fq1,fq2,name,overall_ref,output_overall,minq=0,nthreads=nthreads)#no need to keep unique mapped reads
-    print('time: ',st_time - time.time())
-    print('time: ',datetime.datetime.now().ctime())
+    mapping(fq1,fq2,name,overall_ref,output_overall,minq=0,nthreads=nthreads,bowtie=bowtie,samtools=samtools)#no need to keep unique mapped reads
 
     print('#step2, mapping to separate_ref')
-    print('time: ',datetime.datetime.now().ctime())
-    st_time = time.time()
     refs = []
     with Pool(nthreads) as pool:
-        for f in glob.glob(f'{ref_dir}/fnas/*.fna'):
+        for f in glob.glob(f'{ref_fna_dir}/*.fna'):
             ref = os.path.basename(f).replace('.fna','')
             refs.append(ref)
-            pool.apply_async(mapping,(fq1,fq2,f'{name}-{ref}',f'{separate_ref}/{ref}',output_sep,0,8))#to use 0 minq, ignore intra-genome similarity
+            pool.apply_async(mapping,(fq1,fq2,f'{name}-{ref}',f'{separate_ref}/{ref}',output_sep,0,1,bowtie,samtools))#to use 0 minq, ignore intra-genome similarity
 
         pool.close()
         pool.join()
 
-    print('time: ',st_time - time.time())
-    print('time: ',datetime.datetime.now().ctime())
 
     print('#step4, reads type assignment and nm distribution')
     print('#step4, keep the best reads for same region')
 
-    st_time = time.time()
-    print('time: ',datetime.datetime.now().ctime())
     save = pysam.set_verbosity(0)
 
 
@@ -262,7 +261,7 @@ if __name__ == '__main__':
 
         best_df = get_coverage(output_sep,f'{name}-{ref}.best')
         best_df['width'] = (best_df['coverage']/100)*best_df['endpos']
-        sum_cov = (best_df['width'].sum()/best_df['endpos'].sum())*100
+        sum_cov = best_df['width'].sum()/best_df['endpos'].sum()
         mean_dep = (best_df.meandepth*best_df.covbases).sum()/best_df.covbases.sum()
 
         nms = np.array(nms)
@@ -310,14 +309,5 @@ if __name__ == '__main__':
 
         with open(f'{out_base}/stats/best_number.{name}.txt','w') as outpf:
             outpf.write(f'{best_reads}\n')
-
-    print('time: ',st_time - time.time())
-    print('time: ',datetime.datetime.now().ctime())
-
-    #os.system(f'rm {output_overall}/{name}.*')
-    #os.system(f'rm {output_sep}/{name}*genomic.sort.bam')
-    #os.system(f'rm {output_sep}/{name}*genomic.sort.bam.bai')
-    #os.system(f'rm {output_sep}/{name}*.best.bam')
-    #os.system(f'rm {output_sep}/{name}*bestmapped.reads.txt')
 
 

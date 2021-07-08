@@ -16,7 +16,7 @@ You could also generate sythetic data to check the performance of this pipeline.
 
 ## Citation
 
-Currently this work is under review for publication in **mSystem**.
+Currently this work is under review for publication in **mSystems**.
 
 > ### Comprehensive Strain-level Analysis of the Gut Microbe *Faecalibacterium Prausnitzii* in Patients with Liver Cirrhosis
 
